@@ -145,6 +145,10 @@ input, select {
     font-size: 15px;
 }
 
+.center{
+    text-align: center;
+}
+
 .todo button {
     margin-left: 6px;
 }

@@ -1,64 +1,260 @@
-//Seleção de Elementos
-const todoForm = document.querySelector('#todo-form')
-const todoInput = document.querySelector('#todo-input')
-const editForm = document.querySelector('#edit-form')
-const editInput = document.querySelector('#edit-input')
-const todoList = document.querySelector('#todo-list')
-const cancelEditBtn = document.querySelector('#cancel-edit-btn')
-//Funções
+// Seleção de elementos
+const todoForm = document.querySelector("#todo-form");
+const todoInput = document.querySelector("#todo-input");
+const todoList = document.querySelector("#todo-list");
+const editForm = document.querySelector("#edit-form");
+const editInput = document.querySelector("#edit-input");
+const cancelEditBtn = document.querySelector("#cancel-edit-btn");
+const searchInput = document.querySelector("#search-input");
+const eraseBtn = document.querySelector("#erase-button");
+const filterBtn = document.querySelector("#filter-select");
 
-//Quando a função for chamada, vai ser criado os elementos
-const saveTodo = (text) => {
-    //Criando div que vai conter todos os elementos 
-    const todo = document.createElement("div")
-    todo.classList.add("todo")
+//Guardando a informação do input para comparar e editar
+let oldInputValue;
 
-    //Criando titulo da tarefa
-    const todoTitle = document.createElement("h3")
-    todoTitle.innerText = text
-    todo.appendChild(todoTitle)
+// Funções
 
-    console.log(todo)
-    //Criando botão de finalizar tarefa
-    const finishTodoBtn = document.createElement('button')
-    finishTodoBtn.classList.add('finish-todo')
-    finishTodoBtn.innerHTML='<i class="fa-solid fa-check"></i>'
-    todo.appendChild(finishTodoBtn)
+//função para criar o todo, e add a classList done
+const saveTodo = (text, done = 0, save = 1) => {
+  const todo = document.createElement("div");
+  todo.classList.add("todo");
 
-    //Criando botão de editar tarefa
-    const editTodoBtn = document.createElement('button')
-    editTodoBtn.classList.add('edit-todo')
-    editTodoBtn.innerHTML='<i class="fa-solid fa-pen"></i>'
-    todo.appendChild(editTodoBtn)
+  const todoTitle = document.createElement("h3");
+  todoTitle.innerText = text;
+  todo.appendChild(todoTitle);
 
-    //Criando botão de deletar tarefa
-    const removeTodoBtn = document.createElement('button')
-    removeTodoBtn.classList.add('remove-todo')
-    removeTodoBtn.innerHTML='<i class="fa-solid fa-xmark"></i>'
-    todo.appendChild(removeTodoBtn)
+  const doneBtn = document.createElement("button");
+  doneBtn.classList.add("finish-todo");
+  doneBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+  todo.appendChild(doneBtn);
 
-    //Colocando div com todos os elementos na div principal no html
-    todoList.appendChild(todo)
-    
-    //Limpar a caixa de input a depois da adição
-    todoInput.value= " "
-    //Focar o cursor no input para nova digitação 
-    todoInput.focus()
-    
-}
+  const editBtn = document.createElement("button");
+  editBtn.classList.add("edit-todo");
+  editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+  todo.appendChild(editBtn);
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.classList.add("remove-todo");
+  deleteBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+  todo.appendChild(deleteBtn);
+
+  // Utilizando dados da localStorage
+  if (done) {
+    todo.classList.add("done");
+  }
+
+  if (save) {
+    saveTodoLocalStorage({ text, done: 0 });
+  }
+
+  todoList.appendChild(todo);
+
+  todoInput.value = "";
+};
+
+//Função para esconder ou mostrar os formularios
+const toggleForms = () => {
+  editForm.classList.toggle("hide");
+  todoForm.classList.toggle("hide");
+  todoList.classList.toggle("hide");
+};
 
 
-//Eventos
+const updateTodo = (text) => {
+  const todos = document.querySelectorAll(".todo");
 
-//Criando evento no formulario para add de nova tarefa 
-todoForm.addEventListener("submit", (e) => {
-    e.preventDefault()
+  todos.forEach((todo) => {
+    let todoTitle = todo.querySelector("h3");
 
-    const inputValue = todoInput.value
-    
-    //Se foi digitado algo, chama função para salvar a nova tarefa (evita de salvar campos vazios)
-    if(inputValue) {
-        
-        saveTodo(inputValue)
+    if (todoTitle.innerText === oldInputValue) {
+      todoTitle.innerText = text;
+
+      // Utilizando dados da localStorage
+      updateTodoLocalStorage(oldInputValue, text);
     }
-})
+  });
+};
+
+const getSearchedTodos = (search) => {
+  const todos = document.querySelectorAll(".todo");
+
+  todos.forEach((todo) => {
+    const todoTitle = todo.querySelector("h3").innerText.toLowerCase();
+
+    todo.style.display = "flex";
+
+    console.log(todoTitle);
+
+    if (!todoTitle.includes(search)) {
+      todo.style.display = "none";
+    }
+  });
+};
+
+const filterTodos = (filterValue) => {
+  const todos = document.querySelectorAll(".todo");
+
+  switch (filterValue) {
+    case "all":
+      todos.forEach((todo) => (todo.style.display = "flex"));
+
+      break;
+
+    case "done":
+      todos.forEach((todo) =>
+        todo.classList.contains("done")
+          ? (todo.style.display = "flex")
+          : (todo.style.display = "none")
+      );
+
+      break;
+
+    case "todo":
+      todos.forEach((todo) =>
+        !todo.classList.contains("done")
+          ? (todo.style.display = "flex")
+          : (todo.style.display = "none")
+      );
+
+      break;
+
+    default:
+      break;
+  }
+};
+
+// Eventos
+todoForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const inputValue = todoInput.value;
+
+  if (inputValue) {
+    saveTodo(inputValue);
+  }
+});
+
+document.addEventListener("click", (e) => {
+  const targetEl = e.target;
+  const parentEl = targetEl.closest("div");
+  let todoTitle;
+
+  if (parentEl && parentEl.querySelector("h3")) {
+    todoTitle = parentEl.querySelector("h3").innerText || "";
+  }
+
+  //Finalizar Tarefa
+  if (targetEl.classList.contains("finish-todo")) {
+    parentEl.classList.toggle("done");
+    //chamo a função para guardar status no localStorage
+    updateTodoStatusLocalStorage(todoTitle);
+  }
+
+  if (targetEl.classList.contains("remove-todo")) {
+    parentEl.remove();
+
+    // Utilizando dados da localStorage
+    removeTodoLocalStorage(todoTitle);
+  }
+
+  if (targetEl.classList.contains("edit-todo")) {
+    toggleForms();
+
+    editInput.value = todoTitle;
+    oldInputValue = todoTitle;
+  }
+});
+
+cancelEditBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  toggleForms();
+});
+
+editForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const editInputValue = editInput.value;
+
+  if (editInputValue) {
+    updateTodo(editInputValue);
+  }
+
+  toggleForms();
+});
+
+searchInput.addEventListener("keyup", (e) => {
+  const search = e.target.value;
+
+  getSearchedTodos(search);
+});
+
+eraseBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+
+  searchInput.value = "";
+
+  searchInput.dispatchEvent(new Event("keyup"));
+});
+
+filterBtn.addEventListener("change", (e) => {
+  const filterValue = e.target.value;
+
+  filterTodos(filterValue);
+});
+
+// Local Storage
+const getTodosLocalStorage = () => {
+  const todos = JSON.parse(localStorage.getItem("todos")) || [];
+
+  return todos;
+};
+//A função para carregar todas as tarefas, vai buscar todas as informações no localStorage e vai chamar a função para criar o todo
+const loadTodos = () => {
+  const todos = getTodosLocalStorage();
+
+  todos.forEach((todo) => {
+    saveTodo(todo.text, todo.done, 0);
+  });
+};
+
+const saveTodoLocalStorage = (todo) => {
+  const todos = getTodosLocalStorage();
+
+  todos.push(todo);
+
+  localStorage.setItem("todos", JSON.stringify(todos));
+};
+
+const removeTodoLocalStorage = (todoText) => {
+  const todos = getTodosLocalStorage();
+
+  const filteredTodos = todos.filter((todo) => todo.text != todoText);
+
+  localStorage.setItem("todos", JSON.stringify(filteredTodos));
+};
+
+//Função para salvar no localStorage status da tarefa (feita ou não feita)
+const updateTodoStatusLocalStorage = (todoText) => {
+  const todos = getTodosLocalStorage();
+
+  todos.map((todo) =>
+    todo.text === todoText ? (todo.done = !todo.done) : null
+  );
+
+  localStorage.setItem("todos", JSON.stringify(todos));
+};
+
+//Função para alterar a tarefa
+//Quando a função é chamada ela recebe o input antigo e o novo
+const updateTodoLocalStorage = (todoOldText, todoNewText) => {
+  //pego minha lista do localSorage
+  const todos = getTodosLocalStorage();
+  //varro ela procurando a tarefa que tenha a tarefa antiga e atribuo a tarefa nova
+  todos.map((todo) =>
+    todo.text === todoOldText ? (todo.text = todoNewText) : null
+  );
+  //salvo novamente no localStorage
+  localStorage.setItem("todos", JSON.stringify(todos));
+};
+ //Chamo a função para carregar todas as tarefas 
+loadTodos();
